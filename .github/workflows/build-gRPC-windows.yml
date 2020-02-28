@@ -1,0 +1,65 @@
+name: Build gRPC for Windows
+
+on:
+  push:
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        gRPC_version: [x86-windows, x64-windows]
+      fail-fast: false
+
+    runs-on: windows-latest
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Update vcpkg
+      shell: bash
+      run: vcpkg update
+
+    - name: Update vcpkg - git
+      shell: bash
+      run: |
+        set +e
+        cd $VCPKG_INSTALLATION_ROOT
+        git pull --verbose
+
+    - name: Search for gRPC
+      shell: bash
+      run: |
+        mkdir ./artifacts
+        mkdir ./artifacts/${{ matrix.gRPC_version }}
+        vcpkg search grpc
+        vcpkg search grpc > ./artifacts/${{ matrix.gRPC_version }}/VERSION
+
+    - name: Install version gRPC ${{ matrix.gRPC_version }}
+      run: vcpkg install grpc:${{ matrix.gRPC_version }}
+
+    - name: Copy installed libraries
+      shell: bash
+      run: |
+        cd artifacts
+        cp -rv $VCPKG_INSTALLATION_ROOT/installed/${{ matrix.gRPC_version }} ./
+
+    - name: Create 7z Release
+      uses: DuckSoft/create-7z-action@v1.0
+      with:
+        pathSource: ./artifacts/${{ matrix.gRPC_version }}
+        pathTarget: ./artifacts-${{ matrix.gRPC_version }}.7z
+
+    - name: Uploading artifact
+      uses: actions/upload-artifact@master
+      with:
+        name: artifacts-${{ github.sha }}-${{ matrix.gRPC_version }}.zip
+        path: ./artifacts-${{ matrix.gRPC_version }}.7z
+
+    - name: Upload binaries to release
+      uses: svenstaro/upload-release-action@v1-release
+      with:
+        repo_token: ${{ secrets.GITHUB_TOKEN }}
+        file: artifacts-${{ matrix.gRPC_version }}.7z
+        asset_name: gRPC-${{ matrix.gRPC_version }}.7z
+        tag: release
+        overwrite: true
