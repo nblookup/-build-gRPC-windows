@@ -61,5 +61,5 @@ jobs:
         repo_token: ${{ secrets.GITHUB_TOKEN }}
         file: artifacts-${{ matrix.gRPC_version }}.7z
         asset_name: gRPC-${{ matrix.gRPC_version }}.7z
-        tag: release
+        tag: ${{ github.ref }}
         overwrite: true
